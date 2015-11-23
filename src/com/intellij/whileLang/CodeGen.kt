@@ -21,7 +21,7 @@ import java.util.Stack
 /**
  * Created by Mikhail on 05.11.2015.
  */
-class CodeGen  {
+class CodeGen {
     public val MAX_MEM = 32767
     private val lbls = Stack<Label>()
     private var firstLoop = true
@@ -30,43 +30,45 @@ class CodeGen  {
     val cw = ClassWriter(0)
     val mw = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "main",
             "([Ljava/lang/String;)V", null, null)
+
     fun toByteCode(program: ASTNode?, outFileName: String): ByteArray {
 
         cw.visit(V1_7, ACC_PUBLIC, outFileName, null, "java/lang/Object", null)
         mw.visitCode()
         //TODO: MainMethod
-        if (program?.treePrev?.psi != null) { program?.treePrev?.psi?.text}
-        if (program?.psi != null) { program?.psi?.text}
-        if (program?.treeNext?.psi != null) { program?.treeNext?.psi?.text}
+        if (program?.treePrev?.psi != null) {
+            program?.treePrev?.psi?.text
+        }
+        if (program?.psi != null) {
+            program?.psi?.text
+        }
+        if (program?.treeNext?.psi != null) {
+            program?.treeNext?.psi?.text
+        }
         cw.visitEnd()
         return cw.toByteArray() //получаем байткод
     }
 
-//    public fun generate_assign(node: ASTNode) {
-//        var lvalue = node
-//        val expr_type = node.elementType
-//        if (lvalue.elementType == WhileTypes.ASSIGN_STMT) {
-//        }
-//
-//    }
-
-    public fun MethodVisitor.visitWhileExprConstInt(expr: PsiLiteralExpr) {
-        val c = expr.getNumber().text.toInt()
-        when (c) {
-            -1 -> visitInsn(ICONST_M1)
-            0 -> visitInsn(ICONST_0)
-            1 -> visitInsn(ICONST_1)
-            2 -> visitInsn(ICONST_2)
-            3 -> visitInsn(ICONST_3)
-            4 -> visitInsn(ICONST_4)
-            5 -> visitInsn(ICONST_5)
-            else ->
-                if (c <= 127 && c >= -128) visitIntInsn(BIPUSH, c)
-                else if (c <= 32767 && c >= -32768) visitIntInsn(SIPUSH, c)
-                else visitIntInsn(LDC, c)
+    public fun MethodVisitor.visitWhileExprConstInt(expr: PsiAssignStmt) {
+        val c = expr.getExpr()
+        if (c is PsiLiteralExpr) {
+            val num = c.number.text.toInt()
+            when (num) {
+                -1 -> visitInsn(ICONST_M1)
+                0 -> visitInsn(ICONST_0)
+                1 -> visitInsn(ICONST_1)
+                2 -> visitInsn(ICONST_2)
+                3 -> visitInsn(ICONST_3)
+                4 -> visitInsn(ICONST_4)
+                5 -> visitInsn(ICONST_5)
+                else ->
+                    if (num <= 127 && num >= -128) visitIntInsn(BIPUSH, num)
+                    else if (num <= 32767 && num >= -32768) visitIntInsn(SIPUSH, num)
+                    else visitIntInsn(LDC, num)
+            }
+            numberOfAssign++
+            visitVarInsn(ISTORE, numberOfAssign)
         }
-        numberOfAssign++
-        visitVarInsn(ISTORE, numberOfAssign)
         // как обработать объявление переменных вне функций
         // visitFieldInsn(PUTFIELD, "адрес", "название переменной", "I")
     }
@@ -74,7 +76,7 @@ class CodeGen  {
     public fun MethodVisitor.visitWhileWriteSmtm(expr: PsiWriteStmt) {
         visitFieldInsn(GETSTATIC, "java/lang/System", "out",
                 "Ljava/io/PrintStream;")
-        // TODO: need to write call for function
+        generateWhileExpr(expr.getExpr())
         visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream",
                 "print", "(I)V", false)
     }
@@ -86,42 +88,45 @@ class CodeGen  {
         visitVarInsn(ISTORE, c)
     }
 
-    public fun MethodVisitor.visitWhileBinaryBexpr(expr: PsiRelBexpr, expr1: PsiIfStmt) {
+    public fun MethodVisitor.visitWhileBinaryBexpr(expr: PsiIfStmt) {
         //Если есть ветка else, то нужно заводить label для true, если нету, то не нужно
-        val c = expr.getRel().text
-        val label_true = Label()
-        val label_false = Label()
-        var op = 0
-        when (c) {
+        val c = expr.bexpr
+        if (c is PsiRelBexpr) {
+            val rel = c.rel.text
+            val label_true = Label()
+            val label_false = Label()
+            val elseBr = expr.getElseBranch()
+            var op = 0
+            when (rel) {
             /** rel ::= '<'|'<='|'='|'>='|'>' */
-            "="  -> op = IF_ICMPEQ
-            "<"  -> op = IF_ICMPLT
-            "<=" -> op = IF_ICMPLE
-            ">"  -> op = IF_ICMPGT
-            ">=" -> op = IF_ICMPGE
+                "=" -> op = IF_ICMPEQ
+                "<" -> op = IF_ICMPLT
+                "<=" -> op = IF_ICMPLE
+                ">" -> op = IF_ICMPGT
+                ">=" -> op = IF_ICMPGE
+            }
+            if (elseBr != null) {
+                lbls.push(label_true)
+                lbls.push(label_false)
+                visitJumpInsn(op, label_false)
+                visitWhileStatementList(elseBr)
+                visitJumpInsn(GOTO, label_true)
+            } else {
+                lbls.push(label_false)
+                visitJumpInsn(op, label_false)
+                visitWhileStatementList(expr.thenBranch)
+            }
+            visitFrame(F_SAME, 0, null, 0, null)
         }
-        if (expr1.getElseBranch() != null) {
-            lbls.push(label_true)
-            lbls.push(label_false)
-            visitJumpInsn(op, label_false)
-            //TODO: need to write call for function (generate_list_stmt)
-            visitJumpInsn(GOTO, label_true)
-        } else {
-            lbls.push(label_false)
-            visitJumpInsn(op, label_false)
-            //TODO: call for function (generate_list_stmt)
-        }
-        visitFrame(F_SAME, 0, null, 0, null)
     }
 
     public fun MethodVisitor.visitWhileFunction(expr: PsiProcedure) {
-        cw.visitMethod(ACC_PUBLIC, expr.getText()/* Не знаю, как взять
-        название функции*/ ,"()I", null, null)
+        cw.visitMethod(ACC_PUBLIC, expr.getText(), "()I", null, null)
         //TODO: generate_list_stmt
         val label = Label()
         visitLabel(label)
         visitLocalVariable("this", ""/*расположение файла?*/, null,
-                label, label/* заглушки для labels*/, 0 )
+                label, label/* заглушки для labels*/, 0)
         visitMaxs(1600, 1600)
         visitEnd()
     }
@@ -136,7 +141,8 @@ class CodeGen  {
             "/" -> op = IDIV
             "%" -> op = IREM
         }
-        //TODO: generate_expr(expr.getLeft), generate_expr(expr.getRight)
+        generateWhileExpr(expr.left)
+        generateWhileExpr(expr.right)
         visitInsn(op)
     }
 
@@ -147,7 +153,7 @@ class CodeGen  {
         lbls.push(startLabel)
         visitLabel(startLabel)
         visitFrame(F_APPEND, 1, arrayOf("[I", INTEGER), 0, null)
-        //TODO: generate_list_expr(expr.getStmtList()), bexpr
+        visitWhileStatementList(expr.stmtList)
         visitJumpInsn(IFEQ, endLabel)
         visitJumpInsn(GOTO, lbls.pop())
         visitLabel(lbls.pop())
@@ -158,29 +164,25 @@ class CodeGen  {
     public fun MethodVisitor.visitWhileStatementList(expr: PsiStmtList) {
         val list = expr.getStmtList()
         for (i in list.indices) {
-            when (i) {
-
+            var x = list.get(i)
+            when (x) {
+                is PsiAssignStmt -> visitWhileExprConstInt(x)
+                is PsiIfStmt -> visitWhileBinaryBexpr(x)
+                is PsiWhileStmt -> visitWhileStmt(x)
+                is PsiWriteStmt -> visitWhileWriteSmtm(x)
             }
         }
-        /** хотелось бы как-то получать тип PsiExpr, и в зависимости от него
-         * вызывать функцию
-          */
-
     }
 
-    public fun generateWhileExpr(expr: PsiExpr) {
+    public fun MethodVisitor.generateWhileExpr(expr: PsiExpr?) {
         when (expr) {
-            is PsiReadStmt -> mw.visitWhileRead(expr)
+            is PsiReadStmt -> visitWhileRead(expr)
+            is PsiBinaryExpr -> visitBinaryExpr(expr)
 
         }
     }
-//    fun genTest(node:ASTNode, t: IElementType) {
-//        //val t: PsiElement = node.getPsi()
-//        //val t: IElementType = node.elementType
-//        var lvalue = node.firstChildNode
-//        var expr_type = node
-//    }
 }
+
 public fun main(args: Array<String>) {
     val program: ASTNode? = null
     val className = "Test"
