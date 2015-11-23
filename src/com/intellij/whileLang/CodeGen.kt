@@ -26,16 +26,18 @@ class CodeGen  {
     private val lbls = Stack<Label>()
     private var firstLoop = true
     var numberOfAssign = 0
-    fun toByteCode(program: ASTNode, outFileName: String): ByteArray {
 
-        val cw = ClassWriter(0)
+    val cw = ClassWriter(0)
+    val mw = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "main",
+            "([Ljava/lang/String;)V", null, null)
+    fun toByteCode(program: ASTNode?, outFileName: String): ByteArray {
+
         cw.visit(V1_7, ACC_PUBLIC, outFileName, null, "java/lang/Object", null)
-
+        mw.visitCode()
         //TODO: MainMethod
-        if (program.treePrev.psi != null) { program.treePrev.psi.text}
-        if (program.psi != null) { program.psi.text}
-        if (program.treeNext.psi != null) { program.treeNext.psi.text}
-
+        if (program?.treePrev?.psi != null) { program?.treePrev?.psi?.text}
+        if (program?.psi != null) { program?.psi?.text}
+        if (program?.treeNext?.psi != null) { program?.treeNext?.psi?.text}
         cw.visitEnd()
         return cw.toByteArray() //получаем байткод
     }
@@ -66,7 +68,7 @@ class CodeGen  {
         numberOfAssign++
         visitVarInsn(ISTORE, numberOfAssign)
         // как обработать объявление переменных вне функций
-        // visitFieldInsn(PUTFIELD, "адрес", "название переменной, "I")
+        // visitFieldInsn(PUTFIELD, "адрес", "название переменной", "I")
     }
 
     public fun MethodVisitor.visitWhileWriteSmtm(expr: PsiWriteStmt) {
@@ -113,7 +115,6 @@ class CodeGen  {
     }
 
     public fun MethodVisitor.visitWhileFunction(expr: PsiProcedure) {
-        val cw = ClassWriter(0) // TODO: нужно использовать cw определенный в toByteCode
         cw.visitMethod(ACC_PUBLIC, expr.getText()/* Не знаю, как взять
         название функции*/ ,"()I", null, null)
         //TODO: generate_list_stmt
@@ -153,6 +154,26 @@ class CodeGen  {
         visitFrame(F_SAME, 0, null, 0, null)
 
     }
+
+    public fun MethodVisitor.visitWhileStatementList(expr: PsiStmtList) {
+        val list = expr.getStmtList()
+        for (i in list.indices) {
+            when (i) {
+
+            }
+        }
+        /** хотелось бы как-то получать тип PsiExpr, и в зависимости от него
+         * вызывать функцию
+          */
+
+    }
+
+    public fun generateWhileExpr(expr: PsiExpr) {
+        when (expr) {
+            is PsiReadStmt -> mw.visitWhileRead(expr)
+
+        }
+    }
 //    fun genTest(node:ASTNode, t: IElementType) {
 //        //val t: PsiElement = node.getPsi()
 //        //val t: IElementType = node.elementType
@@ -161,7 +182,7 @@ class CodeGen  {
 //    }
 }
 public fun main(args: Array<String>) {
-    val program = ""
+    val program: ASTNode? = null
     val className = "Test"
     val classByteArray = CodeGen().toByteCode(program, className)
     val targetFile = Paths.get("$className.class")
