@@ -1,0 +1,5 @@
+<root>
+    <item name='com.intellij.lang.LanguageExtensionPoint implementationClass'>
+        <annotation name='java.lang.annotation.Deprecated'/>
+    </item>
+</root>
