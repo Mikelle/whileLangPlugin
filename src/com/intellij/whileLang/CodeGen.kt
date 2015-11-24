@@ -15,8 +15,7 @@ import org.jetbrains.org.objectweb.asm.Opcodes.*
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
-
-import java.util.Stack
+import java.util.*
 
 /**
  * Created by Mikhail on 05.11.2015.
@@ -31,20 +30,57 @@ class CodeGen {
     val mw = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "main",
             "([Ljava/lang/String;)V", null, null)
 
+    abstract class ASTNodeIterator: ASTNode, Iterable<com.intellij.psi.PsiElement> {
+        override fun iterator(): Iterator<com.intellij.psi.PsiElement> = LCRNodeIterator(this)
+    }
+
+    private class EmptyIterator<PsiElement>(): Iterator<PsiElement> {
+        override fun hasNext(): Boolean = false
+        override fun next(): PsiElement { throw NoSuchElementException() }
+    }
+
+    private abstract class NodeIterator<PsiElement>(
+            protected val node: ASTNodeIterator
+    ): Iterator<com.intellij.psi.PsiElement> {
+        val treePrev = node.treePrev as ASTNodeIterator
+        val treeNext = node.treeNext as ASTNodeIterator
+        protected val lIterator: Iterator<com.intellij.psi.PsiElement> =
+                treePrev.iterator() ?: EmptyIterator()
+        protected val rIterator: Iterator<com.intellij.psi.PsiElement> =
+                treeNext.iterator() ?: EmptyIterator()
+        protected var  observed: Boolean = false
+        protected var lHasNext: Boolean = true
+            get() =
+            if (field) { field = lIterator.hasNext(); field } else false
+        protected var rHasNext: Boolean = true
+            get() =
+            if (field) { field = rIterator.hasNext(); field } else false
+
+        override fun hasNext(): Boolean {
+            if (!observed) { return true }
+            if (lHasNext ) { return true }
+            if (rHasNext ) { return true }
+            return false
+        }
+        //        !observed || lIterator.hasNext() || rIterator.hasNext()
+    }
+
+    private class LCRNodeIterator(
+            node: ASTNodeIterator
+    ): NodeIterator<com.intellij.psi.PsiElement>(node) {
+        override fun next(): com.intellij.psi.PsiElement {
+            if (lHasNext ) { return lIterator.next() }
+            if (!observed) { observed = true; return node.psi }
+            if (rHasNext ) { return rIterator.next() }
+            throw NoSuchElementException()
+        }
+    }
+
     fun toByteCode(program: ASTNode?, outFileName: String): ByteArray {
 
         cw.visit(V1_7, ACC_PUBLIC, outFileName, null, "java/lang/Object", null)
         mw.visitCode()
         //TODO: MainMethod
-        if (program?.treePrev?.psi != null) {
-            program?.treePrev?.psi?.text
-        }
-        if (program?.psi != null) {
-            program?.psi?.text
-        }
-        if (program?.treeNext?.psi != null) {
-            program?.treeNext?.psi?.text
-        }
         cw.visitEnd()
         return cw.toByteArray() //получаем байткод
     }
