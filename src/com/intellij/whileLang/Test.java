@@ -14,7 +14,7 @@ public class Test {
         int x = 25;
         int c = 3;
         int z = 1;
-        if (x >= c && x > z) {z = x - c;} else { z = x + c;}
+        if (!(x >= c)) {z = x - c;} else { z = x + c;}
         System.out.println(c);
         return x+z-c;
     }
