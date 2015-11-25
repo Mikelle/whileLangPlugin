@@ -205,9 +205,8 @@ class CodeGen {
         }
     }
 
-    public fun MethodVisitor.visitWhileWhileNotBexpr(expr: PsiNotBexpr) {
-        val c = expr.bexpr
-
+    public fun MethodVisitor.visitWhileNotBexpr(expr: PsiNotBexpr) {
+        visitInsn(INEG)
     }
 
     public fun MethodVisitor.visitWhileFunction(expr: PsiProcList) {
@@ -303,7 +302,7 @@ class CodeGen {
             //is PsiAndBexpr ->
             is PsiBinaryBexpr -> visitWhileBinaryBexpr(expr)
             //is PsiLiteralBexpr ->
-            //is PsiNotBexpr ->
+            is PsiNotBexpr -> visitWhileNotBexpr(expr)
             //is PsiOrBexpr ->
             //is PsiRelBexpr ->
         }
