@@ -1,0 +1,12 @@
+While File(0,7)
+ PsiProcListImpl(PROC_LIST)(0,0)
+   <empty list>
+ PsiStmtListImpl(STMT_LIST)(0,7)
+   PsiAssignStmtImpl(ASSIGN_STMT)(0,7)
+	 PsiElement(WhileTokenType.id)('x')(0,1)
+	 PsiWhiteSpace(' ')(1,2)
+	 PsiElement(WhileTokenType.ASSIGN)(':=')(2,4)
+	 PsiWhiteSpace(' ')(4,5)
+	 PsiLiteralExprImpl(LITERAL_EXPR)(5,6)
+	   PsiElement(WhileTokenType.number)('5')(5,6)
+	 PsiElement(WhileTokenType.;)(';')(6,7)

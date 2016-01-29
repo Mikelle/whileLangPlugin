@@ -1,5 +1,6 @@
 {
     parserClass="com.intellij.whileLang.parser.WhileParser"
+  parserUtilClass="com.intellij.whileLang.parser.WhileParserUtil"
     extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
 
     psiClassPrefix="Psi"
